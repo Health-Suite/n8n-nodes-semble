@@ -62,7 +62,7 @@ if [ "$ENVIRONMENT" = "local" ]; then
     IS_REMOTE=false
 else
     BACKUP_DIR="/root/n8n-backups"
-    CONTAINER_NAME="n8n"
+    CONTAINER_NAME="root-n8n-1"  # Production uses docker compose naming
     IS_REMOTE=true
     SSH_HOST="$N8N_PROD_SSH_HOST"
     SSH_USER="$N8N_PROD_SSH_USER"
@@ -106,15 +106,16 @@ exec_cmd() {
 # Execute docker command (local or remote)
 exec_docker() {
     if [ "$IS_REMOTE" = true ]; then
-        ssh "$SSH_USER@$SSH_HOST" "docker $@"
+        ssh "$SSH_USER@$SSH_HOST" "docker $*"
     else
-        docker "$@"
+        eval "docker $*"
     fi
 }
 
 # Main maintenance workflow
 main() {
-    print_header "🔧 n8n Maintenance Workflow - ${ENVIRONMENT^^}"
+    ENV_UPPER=$(echo "$ENVIRONMENT" | tr '[:lower:]' '[:upper:]')
+    print_header "🔧 n8n Maintenance Workflow - $ENV_UPPER"
     print_status "$BLUE" "Date: $(date '+%Y-%m-%d %H:%M:%S')"
     print_status "$BLUE" "Environment: $ENVIRONMENT"
     if [ "$IS_REMOTE" = true ]; then
