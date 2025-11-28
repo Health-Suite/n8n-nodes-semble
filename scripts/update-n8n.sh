@@ -387,6 +387,28 @@ update_local_docker() {
     print_status "$YELLOW" "Current version: $current_version"
     print_status "$YELLOW" "Target version: $version"
     
+    # Create backup timestamp
+    local backup_timestamp=$(date +%Y%m%d-%H%M%S)
+    print_status "$BLUE" "💾 Creating local backup: n8n-backup-$backup_timestamp"
+    
+    # Create backup directory if it doesn't exist
+    local backup_dir="$test_dir/backups"
+    mkdir -p "$backup_dir"
+    
+    # Create backup using official method (same as production)
+    # Note: Docker Compose prefixes volume names with project name (n8n-local-test_n8n_data)
+    docker run --rm -v n8n-local-test_n8n_data:/source -v "$backup_dir:/backup" alpine sh -c "
+        mkdir -p /backup/n8n-backup-$backup_timestamp
+        cp -r /source/* /backup/n8n-backup-$backup_timestamp/ 2>/dev/null || true
+        echo 'Backup created: n8n-backup-$backup_timestamp'
+    "
+    
+    if [ -d "$backup_dir/n8n-backup-$backup_timestamp" ] && [ "$(ls -A $backup_dir/n8n-backup-$backup_timestamp)" ]; then
+        print_status "$GREEN" "✅ Local backup created successfully"
+    else
+        print_status "$YELLOW" "⚠️  Backup directory created but may be empty"
+    fi
+    
     # Check community nodes before update
     print_status "$BLUE" "🔍 Checking community nodes before update..."
     local nodes_before=$(check_community_nodes "local")
@@ -477,6 +499,8 @@ update_local_docker() {
                     fi
                     
                     print_status "$GREEN" "🌐 Access at: http://localhost:5678"
+                    print_status "$GREEN" "💾 Backup available: n8n-backup-$backup_timestamp"
+                    print_status "$GREEN" "📁 Backup location: $backup_dir/n8n-backup-$backup_timestamp"
                     return 0
                 fi
                 
@@ -499,10 +523,12 @@ update_local_docker() {
     docker compose ps
     print_status "$YELLOW" "📊 Container Health:"
     docker inspect --format='{{.State.Health}}' "n8n-semble-test" 2>/dev/null || echo "No health check configured"
-    print_status "$YELLOW" "� Container Logs (last 30 lines):"
+    print_status "$YELLOW" "📋 Container Logs (last 30 lines):"
     docker compose logs --tail=30 n8n
-    print_status "$YELLOW" "� System Resources:"
+    print_status "$YELLOW" "📊 System Resources:"
     docker stats --no-stream "n8n-semble-test" 2>/dev/null || echo "Cannot get container stats"
+    print_status "$YELLOW" "💾 Backup available for rollback: n8n-backup-$backup_timestamp"
+    print_status "$YELLOW" "📁 Backup location: $backup_dir/n8n-backup-$backup_timestamp"
     print_status "$YELLOW" "💡 For continuous monitoring: docker compose logs -f n8n"
     
     return 1
