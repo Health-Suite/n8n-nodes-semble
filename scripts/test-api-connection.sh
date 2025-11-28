@@ -36,14 +36,14 @@ RESPONSE=$(curl -s -w "\n%{http_code}" \
     -H "Content-Type: application/json" \
     -H "x-token: $SEMBLE_API_TOKEN" \
     -d '{
-        "query": "query { patients(first: 1) { edges { node { id firstName lastName } } } }"
+        "query": "query { patients(pagination: { page: 1, pageSize: 1 }) { data { id firstName lastName } } }"
     }' \
     https://open.semble.io/graphql)
 
 # Extract HTTP status code (last line)
 HTTP_CODE=$(echo "$RESPONSE" | tail -n 1)
-# Extract response body (all but last line)
-BODY=$(echo "$RESPONSE" | head -n -1)
+# Extract response body (all but last line) - BSD compatible
+BODY=$(echo "$RESPONSE" | sed '$d')
 
 echo -e "${YELLOW}HTTP Status: $HTTP_CODE${NC}"
 
@@ -56,7 +56,7 @@ if [ "$HTTP_CODE" = "200" ]; then
     elif echo "$BODY" | grep -q '"data"'; then
         echo -e "${GREEN}✅ API Connection Successful!${NC}"
         echo -e "${GREEN}📊 Response preview:${NC}"
-        echo "$BODY" | jq '.data.patients.edges[0].node // "No patients found"' 2>/dev/null || echo "$BODY"
+        echo "$BODY" | jq '.data.patients.data[0] // "No patients found"' 2>/dev/null || echo "$BODY"
         echo ""
         echo -e "${GREEN}🎉 Ready to proceed with development!${NC}"
     else
