@@ -70,6 +70,15 @@ Complex fields (Letters, Labs, Prescriptions, etc.) are intentionally excluded f
 - Update all references when moving files
 - Project root is `n8n-nodes-semble` directory
 
+### Credentials & Environment
+**Development:**
+- Credentials stored in `.env` file at **workspace root**
+- NOT in project root - always reference workspace-level `.env`
+
+**Production:**
+- WordPress-related credentials stored in `wp-config.php`
+- n8n credentials managed through n8n credentials interface
+
 ## Essential Commands
 ```bash
 pnpm install          # Install dependencies
