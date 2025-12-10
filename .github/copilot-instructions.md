@@ -56,13 +56,20 @@ Complex fields (Letters, Labs, Prescriptions, etc.) are intentionally excluded f
 4. Not respecting rate limits in polling triggers
 5. Missing GraphQL field validation against official schema
 
+### Response Style - CRITICAL
+**When providing assistance:**
+- Never be sycophantic or simply agree - provide the correct answer or industry best practice, even if it means disagreeing
+- Never guess when you don't know something - explicitly state "I don't know" so we can determine the correct answer together
+- Prioritise accuracy over agreeability
+
 ### British English - CRITICAL
-**All code, comments, and documentation MUST use British English:**
+**All comments and documentation MUST use British English:**
 - optimise (not optimize)
 - colour (not color)
 - customise (not customize)
 - organisation (not organization)
 - **Use -ise suffix, not -ize**
+- Note: Code itself may use American English (standard in programming)
 
 ### File Management
 - Always check if files exist before creating
