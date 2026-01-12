@@ -14,7 +14,7 @@ services:
       # --- Task Runners (External Mode for Security) ---
       - N8N_RUNNERS_ENABLED=true
       - N8N_RUNNERS_MODE=external
-      - N8N_RUNNERS_TASK_BROKER_URI=n8n-task-broker:5679
+      - N8N_RUNNERS_TASK_BROKER_URI=http://n8n-task-broker:5679
       
       # --- Production Host Configuration ---
       - WEBHOOK_URL=https://workflows.thehealthsuite.co.uk/
@@ -80,8 +80,8 @@ services:
     container_name: n8n-task-runner-js
     restart: always
     environment:
-      - N8N_RUNNERS_TASK_BROKER_URI=n8n-task-broker:5679
-      - N8N_RUNNERS_GRANT_TOKEN=${N8N_RUNNERS_GRANT_TOKEN:-your-secure-grant-token-here}
+      - N8N_RUNNERS_TASK_BROKER_URI=http://n8n-task-broker:5679
+      - N8N_RUNNERS_AUTH_TOKEN=${N8N_RUNNERS_AUTH_TOKEN}
       - NODE_FUNCTION_ALLOW_BUILTIN=*
       - NODE_FUNCTION_ALLOW_EXTERNAL=*
     networks:

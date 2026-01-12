@@ -26,25 +26,122 @@ echo "📝 Creating docker-compose.yml..."
 cat > docker-compose.yml << 'EOF'
 services:
   n8n:
-    image: n8nio/n8n:${N8N_LOCAL_VERSION:-latest}
+    image: docker.n8n.io/n8nio/n8n:${N8N_LOCAL_VERSION:-latest}
     container_name: n8n-semble-test
     restart: always
+    env_file:
+      - ../.env
     ports:
       - "5678:5678"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:5678/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     environment:
-      - WEBHOOK_URL=http://localhost:5678/
+      # --- Required Environment Variables (Official n8n Recommendations) ---
       - GENERIC_TIMEZONE=Europe/London
-      - N8N_LOG_LEVEL=info
+      - TZ=Europe/London
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+      - N8N_RUNNERS_ENABLED=true
+      - N8N_RUNNERS_MODE=external
+      - N8N_RUNNERS_TASK_BROKER_URI=http://n8n-task-broker:5679
+      
+      # --- Webhook and Host Configuration ---
+      - WEBHOOK_URL=http://localhost:5678/
+      
+      # --- Community Packages ---
       - N8N_COMMUNITY_PACKAGES_ENABLED=true
-      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false
+      
+      # --- API Configuration ---
+      - N8N_API_ENABLED=true
+      - N8N_API_KEY=${N8N_LOCAL_API_KEY:-test-api-key-12345}
+      
+      # --- Logging ---
+      - N8N_LOG_LEVEL=info
+      
+      # --- Security and Performance ---
+      - N8N_SECURE_COOKIE=false
+      - N8N_METRICS=false
+      - N8N_SKIP_AUTH_ON_OAUTH_CALLBACK=false
+      
+      # --- Database Configuration ---
+      - DB_SQLITE_POOL_SIZE=5
     volumes:
       - n8n_data:/home/node/.n8n
       - ./n8n-nodes-semble.tgz:/tmp/n8n-nodes-semble.tgz
+    networks:
+      - n8n-network
+
+  n8n-task-runner:
+    image: n8nio/runners:${N8N_LOCAL_VERSION:-latest}
+    container_name: n8n-task-runner-local
+    restart: always
+    env_file:
+      - ../.env
+    environment:
+      - N8N_RUNNERS_TASK_BROKER_URI=http://n8n-task-broker:5679
+      - N8N_RUNNERS_AUTH_TOKEN=${N8N_RUNNERS_AUTH_TOKEN}
+      - NODE_FUNCTION_ALLOW_BUILTIN=*
+      - NODE_FUNCTION_ALLOW_EXTERNAL=*
+    networks:
+      - n8n-network
+    depends_on:
+      - n8n
+
+  n8n-task-broker:
+    image: docker.n8n.io/n8nio/n8n:${N8N_LOCAL_VERSION:-latest}
+    container_name: n8n-task-broker-local
+    restart: always
+    command: worker --type=taskBroker
+    env_file:
+      - ../.env
+    environment:
+      - GENERIC_TIMEZONE=Europe/London
+      - TZ=Europe/London
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      - N8N_RUNNERS_ENABLED=true
+      - N8N_RUNNERS_MODE=external
+    networks:
+      - n8n-network
+    depends_on:
+      - n8n
 
 volumes:
   n8n_data:
     driver: local
+
+networks:
+  n8n-network:
+    driver: bridge
 EOF
+
+echo "🔧 Creating start.sh..."
+cat > start.sh << 'EOF'
+#!/bin/bash
+# Startup script for n8n local test environment
+# Loads environment variables from centralized .env file
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Load environment variables from parent .env
+if [ -f "$SCRIPT_DIR/../.env" ]; then
+    echo "Loading environment variables from ../.env"
+    export $(grep -v '^#' "$SCRIPT_DIR/../.env" | grep -v '^$' | xargs)
+else
+    echo "Warning: ../.env file not found"
+    exit 1
+fi
+
+# Execute docker compose with any arguments passed to this script
+cd "$SCRIPT_DIR"
+docker compose "$@"
+EOF
+
+chmod +x start.sh
 
 echo "🔧 Creating install-semble-node.sh..."
 cat > install-semble-node.sh << 'EOF'
@@ -62,7 +159,7 @@ fi
 # Check if container is running
 if ! docker ps | grep -q "n8n-semble-test"; then
     echo "❌ n8n container is not running!"
-    echo "   Run 'docker compose up -d' first."
+    echo "   Run './start.sh up -d' first."
     exit 1
 fi
 
@@ -84,7 +181,7 @@ echo "📄 Updating package.json..."
 docker exec n8n-semble-test sh -c 'echo "{\"name\": \"installed-nodes\", \"private\": true, \"dependencies\": {\"n8n-nodes-semble\": \"file:./n8n-nodes-semble\"}}" > /home/node/.n8n/nodes/package.json'
 
 echo "🔄 Restarting n8n..."
-docker compose restart >/dev/null 2>&1
+./start.sh restart >/dev/null 2>&1
 
 echo "✅ Installation complete!"
 echo ""
@@ -400,7 +497,7 @@ This is a local n8n testing environment specifically for the n8n-nodes-semble pa
 
 2. **Start n8n:**
    ```bash
-   docker compose up -d
+   ./start.sh up -d
    ```
 
 3. **Set up owner account:**
@@ -450,10 +547,10 @@ The `.env` file is automatically created from `.env.example` if it doesn't exist
 
 ## Environment Management
 
-- **View logs:** `docker compose logs -f`
-- **Stop environment:** `docker compose down`
-- **Reset environment:** `docker compose down -v` (removes all data)
-- **Restart n8n:** `docker compose restart`
+- **View logs:** `./start.sh logs -f`
+- **Stop environment:** `./start.sh down`
+- **Reset environment:** `./start.sh down -v` (removes all data)
+- **Restart n8n:** `./start.sh restart`
 - **Update n8n:** `./update-n8n.sh` (local alias) or use unified script
 - **Check n8n version:** `./update-n8n.sh current`
 - **List available versions:** `./update-n8n.sh list`
@@ -539,12 +636,12 @@ The Semble node includes built-in rate limiting:
 ### Node not appearing
 - Check that the container is running: `docker ps`
 - Verify the package was built: `ls -la n8n-nodes-semble-1.0.0.tgz`
-- Check n8n logs: `docker compose logs -f`
+- Check n8n logs: `./start.sh logs -f`
 
 ### Installation fails
 - Ensure Docker is running
 - Try rebuilding: `npm run pack:local` (from parent directory)
-- Reset environment: `docker compose down -v && docker compose up -d`
+- Reset environment: `./start.sh down -v && ./start.sh up -d`
 
 ### Credentials not working
 - Check your `.env` file exists and contains valid credentials
@@ -570,7 +667,7 @@ echo ""
 echo "🚀 Next steps:"
 echo "   1. npm run pack:local                    # Build and package the node"
 echo "   2. cd ../n8n-local-test                 # Go to test environment"
-echo "   3. docker compose up -d                 # Start n8n"
+echo "   3. ./start.sh up -d                    # Start n8n"
 echo "   4. ./setup-owner-account.sh             # Create admin account"
 echo "   5. ./install-semble-node.sh             # Install the Semble node"
 echo "   6. Open http://localhost:5678           # Access n8n"
