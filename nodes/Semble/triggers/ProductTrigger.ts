@@ -79,16 +79,31 @@ export class ProductTrigger {
         return new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000); // 1 day
       case "1w":
         return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days
-      case "1m":
-        return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); // 30 days
-      case "3m":
-        return new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000); // 90 days
-      case "6m":
-        return new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000); // 180 days
-      case "12m":
-        return new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000); // 365 days
-      default:
-        return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); // Default to 30 days
+      case "1m": {
+        const date = new Date(now);
+        date.setMonth(date.getMonth() - 1);
+        return date;
+      }
+      case "3m": {
+        const date = new Date(now);
+        date.setMonth(date.getMonth() - 3);
+        return date;
+      }
+      case "6m": {
+        const date = new Date(now);
+        date.setMonth(date.getMonth() - 6);
+        return date;
+      }
+      case "12m": {
+        const date = new Date(now);
+        date.setMonth(date.getMonth() - 12);
+        return date;
+      }
+      default: {
+        const date = new Date(now);
+        date.setMonth(date.getMonth() - 1);
+        return date; // Default to 1 month
+      }
     }
   }
 
