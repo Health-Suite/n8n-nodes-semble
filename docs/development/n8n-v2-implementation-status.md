@@ -11,12 +11,42 @@
 - ✅ Added `N8N_SKIP_AUTH_ON_OAUTH_CALLBACK=false` to local test docker-compose
 - ✅ Created comprehensive migration guide at `docs/development/n8n-v2-migration.md`
 - ✅ Committed changes to feature branch (commit: fbc2f24)
+- ✅ Tested OAuth security in local environment - WORKING
 
 **Security Benefits:**
 - OAuth callbacks now require n8n user authentication
 - Prevents unauthorized access to OAuth endpoints
 - Critical for GDPR and healthcare data protection
 - Aligns with n8n v2.0 security best practices
+
+### 2. Task Runner Separation (External Mode)
+**Status:** ✅ Configuration Complete
+
+**Changes Made:**
+- ✅ Production: Configured external task runners for enhanced security
+- ✅ Local: Using internal task runners (simpler for development)
+- ✅ Added `n8n-task-runner` service (n8nio/runners image)
+- ✅ Added `n8n-task-broker` service for task coordination
+- ✅ Configured network isolation between services
+
+**Production Architecture:**
+```
+┌─────────────────┐
+│   n8n (main)    │ ← User access (port 5678)
+└────────┬────────┘
+         │
+         ├─→ Task Broker (port 5679) ← Coordinates tasks
+         │        ↓
+         │   Task Runner (n8nio/runners) ← Executes Code nodes
+         │
+         └─→ Data Volume (workflows, credentials, executions)
+```
+
+**Security Benefits:**
+- Code execution isolated in separate container
+- Better resource management and scalability
+- Recommended architecture for production healthcare data
+- Aligns with n8n v2.0 best practices
 
 ### 2. Local Environment Testing
 **Status:** ✅ Running Successfully
@@ -83,15 +113,44 @@ Task Runners: Internal mode enabled
 - [ ] Verify all team members can authenticate
 
 ### 2. Task Runners (Optional Enhancement)
-**Current State:** Internal mode (within main container)
-**Recommendation:** Evaluate external mode for production
+**Current State:** ✅ External mode configured for production
+**Status:** Ready for deployment
 
-**Decision Points:**
-- Is additional security isolation needed?
-- Are Python Code nodes used in workflows?
-- Is production scalability a concern?
+**Architecture:**
+- **Local Environment:** Internal task runners (development simplicity)
+- **Production Environment:** External task runners (security isolation)
 
-See migration guide for external task runner setup if needed.
+**Required for Production Deployment:**
+
+1. **Generate Secure Grant Token:**
+   ```bash
+   openssl rand -base64 32
+   ```
+
+2. **Add to Production Environment:**
+   Create/update `.env` file with:
+   ```bash
+   N8N_RUNNERS_GRANT_TOKEN=<generated-token-from-step-1>
+   ```
+
+3. **Deploy Services:**
+   ```bash
+   docker compose -f docker-compose.production.yml up -d
+   ```
+
+**Verification:**
+```bash
+# Check all services are running
+docker compose -f docker-compose.production.yml ps
+
+# Expected services:
+# - n8n-production (main app)
+# - n8n-task-runner-js (code execution)
+# - n8n-task-broker (task coordination)
+
+# Check task runner connection
+docker logs n8n-task-runner-js | grep "connected"
+```
 
 ### 3. Production Deployment
 **After successful local testing:**

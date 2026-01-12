@@ -9,9 +9,9 @@ n8n 2.0 introduces breaking changes that affect instance configuration, particul
 ## Migration Status
 
 - [x] Feature branch created: `chore/n8n-v2-instance-compatibility`
-- [ ] Local test environment updated
-- [ ] Production environment configuration updated
-- [ ] OAuth callback authentication tested
+- [x] Local test environment updated (internal task runners)
+- [x] Production environment configuration updated (external task runners)
+- [x] OAuth callback authentication tested
 - [ ] Task runners configuration verified
 - [ ] Documentation updated
 - [ ] Changes tested in local environment
@@ -98,8 +98,42 @@ Add separate `n8nio/runners` service to docker-compose.
 - Requires additional container
 
 **Implementation Plan:**
-1. **Local Environment** (`n8n-local-test`): Keep internal task runners for simplicity
-2. **Production Environment**: Evaluate need for external task runners based on security requirements
+1. ✅ **Local Environment** (`n8n-local-test`): Using internal task runners (simpler, no changes needed)
+2. ✅ **Production Environment**: Using external task runners for better security and isolation
+
+**External Task Runner Setup (Production):**
+The production docker-compose now includes three services:
+1. **n8n** - Main application container
+2. **n8n-task-runner** - Executes Code node JavaScript/TypeScript
+3. **n8n-task-broker** - Coordinates task distribution
+
+**Configuration Added:**
+```yaml
+services:
+  n8n:
+    environment:
+      - N8N_RUNNERS_MODE=external
+      - N8N_RUNNERS_TASK_BROKER_URI=n8n-task-broker:5679
+  
+  n8n-task-runner:
+    image: n8nio/runners:latest
+    environment:
+      - N8N_RUNNERS_GRANT_TOKEN=${N8N_RUNNERS_GRANT_TOKEN}
+  
+  n8n-task-broker:
+    command: worker --type=taskBroker
+```
+
+**Required Environment Variable:**
+Add to production `.env` file:
+```bash
+N8N_RUNNERS_GRANT_TOKEN=<generate-secure-token>
+```
+
+Generate secure token:
+```bash
+openssl rand -base64 32
+```
 
 **Testing Checklist:**
 - [ ] Local: Code node executions work
