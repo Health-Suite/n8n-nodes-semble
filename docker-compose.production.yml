@@ -39,6 +39,7 @@ services:
       - N8N_SECURE_COOKIE=true
       - N8N_JWT_AUTH_HEADER=authorization
       - N8N_JWT_AUTH_HEADER_VALUE_PREFIX=Bearer
+      - N8N_SKIP_AUTH_ON_OAUTH_CALLBACK=false
       
       # --- Logging and Monitoring ---
       - N8N_LOG_LEVEL=warn
