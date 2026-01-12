@@ -6,15 +6,15 @@
  * @namespace N8nNodesSemble.Nodes
  */
 
-import {
+import type {
   IPollFunctions,
   IDataObject,
   INodeExecutionData,
   INodeType,
   INodeTypeDescription,
-  NodeOperationError,
-  NodeConnectionType,
 } from "n8n-workflow";
+
+import { NodeOperationError, NodeConnectionTypes } from "n8n-workflow";
 
 import { sembleApiRequest } from "./GenericFunctions";
 import {
@@ -373,7 +373,7 @@ export class SembleTrigger implements INodeType {
       name: "Semble Trigger",
     },
     inputs: [],
-    outputs: [NodeConnectionType.Main],
+    outputs: [NodeConnectionTypes.Main],
     credentials: [
       {
         name: "sembleApi",
