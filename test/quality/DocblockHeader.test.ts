@@ -37,6 +37,10 @@ describe('Docblock Header Quality Checks', () => {
 		/dist/,
 		/build/,
 		/coverage/,
+		/\.venv/,
+		/docs-env/,
+		/venv/,
+		/env/,
 		/\.d\.ts$/,
 		/debug-validation\.ts$/, // Temporary debug files
 		/test-.*\.ts$/, // Temporary test files

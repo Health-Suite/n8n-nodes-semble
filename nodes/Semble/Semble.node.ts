@@ -6,7 +6,7 @@
  * @namespace N8nNodesSemble.Nodes
  */
 
-import {
+import type {
   IExecuteFunctions,
   IDataObject,
   ILoadOptionsFunctions,
@@ -14,9 +14,12 @@ import {
   INodePropertyOptions,
   INodeType,
   INodeTypeDescription,
+} from "n8n-workflow";
+
+import {
   NodeApiError,
   NodeOperationError,
-  NodeConnectionType,
+  NodeConnectionTypes,
 } from "n8n-workflow";
 
 import { sembleApiRequest } from "./GenericFunctions";
@@ -229,8 +232,8 @@ export class Semble implements INodeType {
     defaults: {
       name: "Semble",
     },
-    inputs: [NodeConnectionType.Main],
-    outputs: [NodeConnectionType.Main],
+    inputs: [NodeConnectionTypes.Main],
+    outputs: [NodeConnectionTypes.Main],
     credentials: [
       {
         name: "sembleApi",
