@@ -49,6 +49,10 @@ services:
       - N8N_RUNNERS_MODE=external
       - N8N_RUNNERS_TASK_BROKER_URI=http://n8n-task-broker:5679
       
+      # --- Redis Configuration (Required for External Task Runners) ---
+      - QUEUE_BULL_REDIS_HOST=redis
+      - QUEUE_BULL_REDIS_PORT=6379
+      
       # --- Webhook and Host Configuration ---
       - WEBHOOK_URL=http://localhost:5678/
       
@@ -74,6 +78,20 @@ services:
       - ./n8n-nodes-semble.tgz:/tmp/n8n-nodes-semble.tgz
     networks:
       - n8n-network
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    container_name: n8n-redis-local
+    restart: always
+    networks:
+      - n8n-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   n8n-task-runner:
     image: n8nio/runners:${N8N_LOCAL_VERSION:-latest}
@@ -104,10 +122,14 @@ services:
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
       - N8N_RUNNERS_ENABLED=true
       - N8N_RUNNERS_MODE=external
+      - N8N_RUNNERS_BROKER_LISTEN_ADDRESS=0.0.0.0
+      - QUEUE_BULL_REDIS_HOST=redis
+      - QUEUE_BULL_REDIS_PORT=6379
     networks:
       - n8n-network
     depends_on:
       - n8n
+      - redis
 
 volumes:
   n8n_data:
