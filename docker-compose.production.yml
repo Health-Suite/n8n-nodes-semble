@@ -10,7 +10,11 @@ services:
       - GENERIC_TIMEZONE=Europe/London
       - TZ=Europe/London
       - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+      
+      # --- Task Runners (External Mode for Security) ---
       - N8N_RUNNERS_ENABLED=true
+      - N8N_RUNNERS_MODE=external
+      - N8N_RUNNERS_TASK_BROKER_URI=http://n8n-task-broker:5679
       
       # --- Production Host Configuration ---
       - WEBHOOK_URL=https://workflows.thehealthsuite.co.uk/
@@ -39,6 +43,7 @@ services:
       - N8N_SECURE_COOKIE=true
       - N8N_JWT_AUTH_HEADER=authorization
       - N8N_JWT_AUTH_HEADER_VALUE_PREFIX=Bearer
+      - N8N_SKIP_AUTH_ON_OAUTH_CALLBACK=false
       
       # --- Logging and Monitoring ---
       - N8N_LOG_LEVEL=warn
@@ -58,6 +63,9 @@ services:
     volumes:
       - n8n_data:/home/node/.n8n
     
+    networks:
+      - n8n-network
+    
     # Health check for proper container monitoring
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:5678/healthz || exit 1"]
@@ -65,6 +73,37 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+  
+  # External Task Runner for Code Node Execution (n8n v2.0+)
+  n8n-task-runner:
+    image: n8nio/runners:${N8N_PROD_VERSION:-latest}
+    container_name: n8n-task-runner-js
+    restart: always
+    environment:
+      - N8N_RUNNERS_TASK_BROKER_URI=http://n8n-task-broker:5679
+      - N8N_RUNNERS_AUTH_TOKEN=${N8N_RUNNERS_AUTH_TOKEN}
+      - NODE_FUNCTION_ALLOW_BUILTIN=*
+      - NODE_FUNCTION_ALLOW_EXTERNAL=*
+    networks:
+      - n8n-network
+    depends_on:
+      - n8n
+    
+  # Task Broker for coordinating task runners
+  n8n-task-broker:
+    image: n8nio/n8n:${N8N_PROD_VERSION:-latest}
+    container_name: n8n-task-broker
+    restart: always
+    command: worker --type=taskBroker
+    environment:
+      - GENERIC_TIMEZONE=Europe/London
+      - TZ=Europe/London
+      - N8N_RUNNERS_ENABLED=true
+      - N8N_RUNNERS_MODE=external
+    networks:
+      - n8n-network
+    depends_on:
+      - n8n
       
   # Uncomment this section if using PostgreSQL
   # postgres:
@@ -87,5 +126,5 @@ volumes:
   #   driver: local
 
 networks:
-  default:
-    name: n8n-network
+  n8n-network:
+    driver: bridge
