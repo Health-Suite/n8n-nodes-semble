@@ -378,7 +378,7 @@ describeIntegration("Patient Operations - Real API Integration", () => {
         expect(resultLimited).toBeDefined();
         expect(resultAll).toBeDefined();
         console.log(`✅ Pagination configuration working correctly`);
-      });
+      }, 60000); // Increase timeout to 60 seconds for this integration test
     });
 
     describe("Update Patient", () => {
