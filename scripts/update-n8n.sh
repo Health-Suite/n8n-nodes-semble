@@ -76,7 +76,7 @@ make_n8n_api_call() {
     local data="$3"
     
     local curl_cmd="curl -s -X $method"
-    curl_cmd="$curl_cmd -H 'Authorization: Bearer $API_KEY'"
+    curl_cmd="$curl_cmd -H 'X-N8N-API-KEY: $API_KEY'"
     curl_cmd="$curl_cmd -H 'Content-Type: application/json'"
     
     if [ -n "$data" ]; then
@@ -313,20 +313,14 @@ get_current_version_api() {
     
     get_api_config "$env" || return 1
     
-    # Try to get version from API health endpoint
-    local response=$(curl -s "$HOST_URL/healthz" 2>/dev/null || echo "")
+    # Use the authenticated API endpoint — avoids Cloudflare Access redirect on /healthz
+    local response=$(curl -s \
+        -H "X-N8N-API-KEY: $API_KEY" \
+        -H "Content-Type: application/json" \
+        "${API_ENDPOINT}workflows?limit=1" 2>/dev/null || echo "")
     
-    if [ -n "$response" ]; then
-        # Try to extract version from response if available
-        local version=$(echo "$response" | grep -o '"version":"[^"]*"' | cut -d'"' -f4 2>/dev/null || echo "")
-        
-        if [ -n "$version" ]; then
-            echo "$version"
-        else
-            # Fallback: try to get from status endpoint
-            local status_response=$(make_n8n_api_call "GET" "/settings" 2>/dev/null || echo "")
-            echo "api-accessible"
-        fi
+    if [ -n "$response" ] && echo "$response" | grep -q '"data"'; then
+        echo "api-accessible"
     else
         echo "unreachable"
     fi
