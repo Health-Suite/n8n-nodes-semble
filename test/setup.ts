@@ -59,7 +59,10 @@ afterAll(async () => {
     eventSystem.clear();
     
     // Give a moment for cleanup to complete
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => {
+      const t = setTimeout(resolve, 100);
+      t.unref();
+    });
   } catch (error) {
     // Ignore errors during cleanup - services may not be initialized
     console.debug('Cleanup warning (can be ignored):', error instanceof Error ? error.message : String(error));
