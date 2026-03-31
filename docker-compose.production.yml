@@ -1,130 +1,65 @@
+# Production n8n Configuration
+# Updated: 2026-01-13
+# n8n version: 2.3.4
+# Task Runners: Internal mode (simplified for single-server SQLite deployment)
+# Reverse Proxy: Traefik (external container managed separately)
+
 services:
   n8n:
-    image: n8nio/n8n:${N8N_PROD_VERSION:-latest}
+    image: docker.n8n.io/n8nio/n8n:${N8N_PROD_VERSION:-latest}
     container_name: n8n-production
     restart: always
     ports:
       - "5678:5678"
+    
+    # Traefik labels for reverse proxy routing
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.n8n.rule=Host(`${SUBDOMAIN}.${DOMAIN_NAME}`)
+      - traefik.http.routers.n8n.tls=true
+      - traefik.http.routers.n8n.entrypoints=web,websecure
+      - traefik.http.routers.n8n.tls.certresolver=mytlschallenge
+      - traefik.http.middlewares.n8n.headers.SSLRedirect=true
+      - traefik.http.middlewares.n8n.headers.STSSeconds=315360000
+      - traefik.http.middlewares.n8n.headers.browserXSSFilter=true
+      - traefik.http.middlewares.n8n.headers.contentTypeNosniff=true
+      - traefik.http.middlewares.n8n.headers.forceSTSHeader=true
+      - traefik.http.middlewares.n8n.headers.SSLHost=${DOMAIN_NAME}
+      - traefik.http.middlewares.n8n.headers.STSIncludeSubdomains=true
+      - traefik.http.middlewares.n8n.headers.STSPreload=true
+      - traefik.http.routers.n8n.middlewares=n8n@docker
+    
     environment:
-      # --- Required Environment Variables (Official n8n Recommendations) ---
-      - GENERIC_TIMEZONE=Europe/London
-      - TZ=Europe/London
-      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
-      
-      # --- Task Runners (External Mode for Security) ---
-      - N8N_RUNNERS_ENABLED=true
-      - N8N_RUNNERS_MODE=external
-      - N8N_RUNNERS_TASK_BROKER_URI=http://n8n-task-broker:5679
-      
-      # --- Production Host Configuration ---
-      - WEBHOOK_URL=https://workflows.thehealthsuite.co.uk/
-      - N8N_HOST=workflows.thehealthsuite.co.uk
+      # Host Configuration
+      - N8N_HOST=${SUBDOMAIN}.${DOMAIN_NAME}
+      - N8N_PORT=5678
       - N8N_PROTOCOL=https
-      - N8N_PORT=443
+      - NODE_ENV=production
+      - WEBHOOK_URL=https://${SUBDOMAIN}.${DOMAIN_NAME}/
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
       
-      # --- Database Configuration (SQLite default, consider PostgreSQL) ---
-      # For PostgreSQL, uncomment and configure these:
-      # - DB_TYPE=postgresdb
-      # - DB_POSTGRESDB_DATABASE=${POSTGRES_DB}
-      # - DB_POSTGRESDB_HOST=${POSTGRES_HOST}
-      # - DB_POSTGRESDB_PORT=${POSTGRES_PORT:-5432}
-      # - DB_POSTGRESDB_USER=${POSTGRES_USER}
-      # - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
-      # - DB_POSTGRESDB_SCHEMA=${POSTGRES_SCHEMA:-n8n}
+      # Task Runners (Internal Mode for simplified deployment)
+      - N8N_RUNNERS_ENABLED=true
+      - N8N_RUNNERS_MODE=internal
+      - N8N_RUNNERS_AUTH_TOKEN=${N8N_RUNNERS_AUTH_TOKEN}
       
-      # --- Community Packages ---
-      - N8N_COMMUNITY_PACKAGES_ENABLED=true
-      
-      # --- API Configuration ---
-      - N8N_API_ENABLED=true
-      - N8N_API_KEY=${N8N_PROD_API_KEY}
-      
-      # --- Security Configuration ---
-      - N8N_SECURE_COOKIE=true
-      - N8N_JWT_AUTH_HEADER=authorization
-      - N8N_JWT_AUTH_HEADER_VALUE_PREFIX=Bearer
+      # Security (n8n v2.0+ hardening)
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
       - N8N_SKIP_AUTH_ON_OAUTH_CALLBACK=false
-      
-      # --- Logging and Monitoring ---
-      - N8N_LOG_LEVEL=warn
-      - N8N_METRICS=true
-      - N8N_DIAGNOSTICS_ENABLED=false
-      
-      # --- Performance and Scaling ---
-      - EXECUTIONS_DATA_SAVE_ON_ERROR=all
-      - EXECUTIONS_DATA_SAVE_ON_SUCCESS=none
-      - EXECUTIONS_DATA_SAVE_ON_PROGRESS=false
-      - EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS=false
-      
-      # --- Webhook Configuration ---
-      - N8N_PAYLOAD_SIZE_MAX=16777216
-      - N8N_DISABLE_UI=false
-      
+    
     volumes:
       - n8n_data:/home/node/.n8n
     
     networks:
-      - n8n-network
-    
-    # Health check for proper container monitoring
-    healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:5678/healthz || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-  
-  # External Task Runner for Code Node Execution (n8n v2.0+)
-  n8n-task-runner:
-    image: n8nio/runners:${N8N_PROD_VERSION:-latest}
-    container_name: n8n-task-runner-js
-    restart: always
-    environment:
-      - N8N_RUNNERS_TASK_BROKER_URI=http://n8n-task-broker:5679
-      - N8N_RUNNERS_AUTH_TOKEN=${N8N_RUNNERS_AUTH_TOKEN}
-      - NODE_FUNCTION_ALLOW_BUILTIN=*
-      - NODE_FUNCTION_ALLOW_EXTERNAL=*
-    networks:
-      - n8n-network
-    depends_on:
-      - n8n
-    
-  # Task Broker for coordinating task runners
-  n8n-task-broker:
-    image: n8nio/n8n:${N8N_PROD_VERSION:-latest}
-    container_name: n8n-task-broker
-    restart: always
-    command: worker --type=taskBroker
-    environment:
-      - GENERIC_TIMEZONE=Europe/London
-      - TZ=Europe/London
-      - N8N_RUNNERS_ENABLED=true
-      - N8N_RUNNERS_MODE=external
-    networks:
-      - n8n-network
-    depends_on:
-      - n8n
-      
-  # Uncomment this section if using PostgreSQL
-  # postgres:
-  #   image: postgres:15-alpine
-  #   container_name: n8n-postgres
-  #   restart: always
-  #   environment:
-  #     - POSTGRES_DB=${POSTGRES_DB:-n8n}
-  #     - POSTGRES_USER=${POSTGRES_USER:-n8n}
-  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #   ports:
-  #     - "5432:5432"
-
-volumes:
-  n8n_data:
-    driver: local
-  # postgres_data:
-  #   driver: local
+      - default
 
 networks:
-  n8n-network:
-    driver: bridge
+  # Uses the external network where Traefik is running
+  default:
+    name: root_default
+    external: true
+
+volumes:
+  # External volume for n8n data persistence
+  n8n_data:
+    external: true
