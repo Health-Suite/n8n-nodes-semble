@@ -1,0 +1,4 @@
+# CODEOWNERS — Health-Suite/n8n-nodes-semble
+# Any one listed owner for a matching path must approve before merging.
+
+* @mikehatcher @TheHealthSuite
